@@ -34,7 +34,25 @@ OAuth 클라이언트 ID는 `src/App.tsx`의 `CLIENT_ID` 상수에 고정되어 
 
 ## 테마
 
-헤더의 테마 선택으로 전환: 기본 / 장부(줄노트) / 고서(15세기 양피지) / 엑셀(셀 격자)
+설정 탭의 테마 선택으로 전환합니다. 엑셀(셀 격자) / 파스텔 / 장부(줄노트) / 고서(15세기 양피지) 네 가지이며, 아래는 각 테마의 월별 화면입니다.
+
+| 엑셀 | 파스텔 |
+|---|---|
+| ![엑셀 테마 월별 화면](screenshots/excel-month.png) | ![파스텔 테마 월별 화면](screenshots/classic-month.png) |
+
+| 장부 | 고서 |
+|---|---|
+| ![장부 테마 월별 화면](screenshots/ledger-month.png) | ![고서 테마 월별 화면](screenshots/manuscript-month.png) |
+
+### 화면
+
+월별 외 나머지 화면입니다 (엑셀 테마 기준).
+
+| 인쇄/캡처용 보기 | 항목 관리 | 설정 |
+|---|---|---|
+| ![인쇄 화면](screenshots/excel-print.png) | ![항목 관리 화면](screenshots/excel-cats.png) | ![설정 화면](screenshots/excel-settings.png) |
+
+네 테마 × 네 화면 조합 16장 전체는 `screenshots/{excel,classic,ledger,manuscript}-{month,print,cats,settings}.png` 에 있습니다.
 
 ## 실행
 
