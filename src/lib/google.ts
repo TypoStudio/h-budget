@@ -2,12 +2,20 @@ const SHEETS = 'https://sheets.googleapis.com/v4/spreadsheets'
 const SCOPE =
   'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.metadata.readonly'
 const LS_TOKEN = 'hb.token'
+/** 이 브라우저에서 한 번이라도 권한에 동의했는지 — 조용한 재로그인 시도 여부를 판단한다 */
+const LS_CONSENT = 'hb.consent'
 
 let accessToken: string | null = null
 let clientIdInUse = ''
+let refreshTimer: number | undefined
 
 export function isSignedIn(): boolean {
   return !!accessToken
+}
+
+/** 예전에 이 브라우저에서 권한에 동의한 적이 있으면 true */
+export function hasConsented(): boolean {
+  return localStorage.getItem(LS_CONSENT) === '1'
 }
 
 /** 새로고침 시 localStorage에 저장된 토큰이 유효하면 복원한다 */
@@ -19,6 +27,7 @@ export function restoreToken(): boolean {
     // 권한 범위가 바뀐 예전 토큰은 폐기 (예: 드라이브 목록 권한 추가 전 토큰)
     if (t && s === SCOPE && exp - 60_000 > Date.now()) {
       accessToken = t
+      scheduleRefresh(exp - Date.now())
       return true
     }
   } catch {
@@ -33,28 +42,66 @@ function persistToken(token: string, expiresInSec: number): void {
     LS_TOKEN,
     JSON.stringify({ t: token, exp: Date.now() + expiresInSec * 1000, s: SCOPE }),
   )
+  localStorage.setItem(LS_CONSENT, '1')
+  scheduleRefresh(expiresInSec * 1000)
 }
 
-export function signIn(clientId: string, silent = false): Promise<void> {
-  clientIdInUse = clientId
+/** 토큰 만료 2분 전에 조용히 새 토큰을 받아 사용 중 세션이 끊기지 않게 한다 */
+function scheduleRefresh(msUntilExpiry: number): void {
+  window.clearTimeout(refreshTimer)
+  refreshTimer = window.setTimeout(
+    () => {
+      if (clientIdInUse) void signIn(clientIdInUse, true).catch(() => {})
+    },
+    Math.max(msUntilExpiry - 120_000, 10_000),
+  )
+}
+
+/** GIS 스크립트는 async로 로드되므로 앱 시작 직후에는 아직 없을 수 있다 */
+function gisReady(timeoutMs = 10_000): Promise<any> {
+  const start = Date.now()
   return new Promise((resolve, reject) => {
-    const g = (window as unknown as { google?: any }).google
-    if (!g?.accounts?.oauth2) {
-      reject(new Error('Google 로그인 스크립트가 아직 로드되지 않았습니다. 잠시 후 다시 시도해주세요.'))
-      return
+    const tick = () => {
+      const g = (window as unknown as { google?: any }).google
+      if (g?.accounts?.oauth2) resolve(g)
+      else if (Date.now() - start > timeoutMs)
+        reject(new Error('Google 로그인 스크립트를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.'))
+      else setTimeout(tick, 100)
+    }
+    tick()
+  })
+}
+
+/**
+ * 로그인. silent면 동의 창 없이 토큰만 다시 받아온다(구글 세션이 살아 있을 때만 성공).
+ * 브라우저가 서드파티 쿠키를 막으면 실패하므로 호출부에서 폴백을 준비해야 한다.
+ */
+export async function signIn(clientId: string, silent = false): Promise<void> {
+  clientIdInUse = clientId
+  const g = await gisReady()
+  return new Promise((resolve, reject) => {
+    // 조용한 재로그인은 아무 콜백도 오지 않을 수 있어 시간 제한을 둔다 (없으면 화면이 멈춘다)
+    const timer = silent
+      ? window.setTimeout(() => reject(new Error('자동 로그인에 응답이 없습니다.')), 8_000)
+      : undefined
+    const finish = (fn: () => void) => {
+      window.clearTimeout(timer)
+      fn()
     }
     const tokenClient = g.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: SCOPE,
-      callback: (resp: { access_token?: string; expires_in?: number; error?: string }) => {
-        if (resp.error || !resp.access_token) reject(new Error(resp.error ?? '로그인에 실패했습니다.'))
-        else {
-          accessToken = resp.access_token
-          persistToken(resp.access_token, Number(resp.expires_in ?? 3600))
-          resolve()
-        }
-      },
-      error_callback: (err: { message?: string }) => reject(new Error(err?.message ?? '로그인 창이 닫혔습니다.')),
+      callback: (resp: { access_token?: string; expires_in?: number; error?: string }) =>
+        finish(() => {
+          if (resp.error || !resp.access_token) reject(new Error(resp.error ?? '로그인에 실패했습니다.'))
+          else {
+            accessToken = resp.access_token
+            persistToken(resp.access_token, Number(resp.expires_in ?? 3600))
+            resolve()
+          }
+        }),
+      error_callback: (err: { message?: string }) =>
+        finish(() => reject(new Error(err?.message ?? '로그인 창이 닫혔습니다.'))),
     })
     tokenClient.requestAccessToken(silent ? { prompt: '' } : {})
   })
@@ -64,7 +111,9 @@ export function signOut(): void {
   const g = (window as unknown as { google?: any }).google
   if (accessToken && g?.accounts?.oauth2) g.accounts.oauth2.revoke(accessToken, () => {})
   accessToken = null
+  window.clearTimeout(refreshTimer)
   localStorage.removeItem(LS_TOKEN)
+  localStorage.removeItem(LS_CONSENT)
 }
 
 async function call(method: string, url: string, body?: unknown, retried = false): Promise<any> {

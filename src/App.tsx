@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ExternalLink, FileSpreadsheet, LogOut, RefreshCw, Search } from 'lucide-react'
-import { drive, folderPath, restoreToken, signIn, signOut, type DriveFile } from './lib/google'
+import { drive, folderPath, hasConsented, restoreToken, signIn, signOut, type DriveFile } from './lib/google'
 import {
   addCategory as sheetAddCategory,
   CARRYOVER_ID,
@@ -37,6 +37,7 @@ type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 
 export default function App() {
   const [signedIn, setSignedIn] = useState(false)
+  const [booting, setBooting] = useState(true)
   const [spreadsheetId, setSpreadsheetId] = useState<string | null>(null)
   const [sheetTitle, setSheetTitle] = useState('')
   const [sheetInput, setSheetInput] = useState('')
@@ -116,13 +117,20 @@ export default function App() {
     }
   }
 
-  // 새로고침 시 저장된 토큰으로 로그인 유지
+  // 재방문 시 로그인 유지: 저장된 토큰이 살아 있으면 그대로, 만료됐어도
+  // 예전에 동의한 브라우저면 동의 창 없이 토큰만 다시 받아온다
   useEffect(() => {
-    if (restoreToken()) {
-      setSignedIn(true)
-      const stored = localStorage.getItem(LS_SHEET)
-      if (stored) void connectTo(stored)
+    const boot = async () => {
+      let ok = restoreToken()
+      if (!ok && hasConsented()) ok = await signIn(CLIENT_ID, true).then(() => true, () => false)
+      if (ok) {
+        setSignedIn(true)
+        const stored = localStorage.getItem(LS_SHEET)
+        if (stored) await connectTo(stored)
+      }
+      setBooting(false)
     }
+    void boot()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -267,6 +275,13 @@ export default function App() {
       {error} <button className="link" onClick={() => setError(null)}>닫기</button>
     </div>
   )
+
+  if (booting)
+    return (
+      <div className="center card">
+        <p className="hint">로그인 확인 중…</p>
+      </div>
+    )
 
   if (!signedIn)
     return (
