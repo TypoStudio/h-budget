@@ -491,6 +491,7 @@ export default function App() {
           <p className="mb-2">
             연결된 시트: <b>{sheetTitle}</b>
           </p>
+          <p className="mb-2 hint">버전 {__APP_VERSION__}</p>
           <div className="btn-col">
             <button
               onClick={() => window.open(`https://docs.google.com/spreadsheets/d/${spreadsheetId}`, '_blank')}
