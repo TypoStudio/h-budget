@@ -12,7 +12,10 @@ import type { Category, Entry, Kind } from '../types'
 export const LEDGER = '가계부'
 /** 이월잔고 수동 입력을 나타내는 예약 항목 ID */
 export const CARRYOVER_ID = '__이월__'
-const COMPUTED = ['월급', '잔고', '지출합계', '카드합계']
+/** 앱 구조의 예약 열 — 항목으로 쓸 수 없다 */
+const RESERVED = ['이월잔고', '지출합계', '잔고']
+/** 원본 엑셀 시트의 계산 열 — 같은 이름이라도 수식이 없으면 사용자가 만든 일반 항목이다 */
+const LEGACY_COMPUTED = ['월급', '카드합계']
 const RANGE = `${LEDGER}!A2:AZ1000`
 
 export function newId(): string {
@@ -62,6 +65,8 @@ interface Ctx {
   carryCol: number
   /** 앱이 수식을 관리하는 시트인지 (지출합계·잔고만 있는 생성형 구조) */
   managed: boolean
+  /** 이 시트에서 계산 열로 판정된 헤더 이름들 */
+  computed: string[]
   colOf: Map<string, number>
   /** 월 → 시트 행 번호(1 기준) */
   rowOf: Map<string, number>
@@ -125,13 +130,27 @@ export async function loadAll(id: string): Promise<{ categories: Category[]; ent
   const colOf = new Map<string, number>()
   // 다시 불러와도 진행 중인 화면 상태가 끊기지 않도록 이전 스냅샷과 이름+구분으로 id를 유지
   const prev = ctx?.id === id ? [...ctx.cats] : []
+  // '월급' 같은 이름은 원본 시트에선 계산 열이지만 앱에선 흔한 항목명이다.
+  // 셀을 참조하는 수식이 있어야 계산 열 — 금액으로 넣은 산술 수식(=15000-5000)은 제외한다
+  const hasRefFormula = (col: number) =>
+    formulas.some((row, r) => {
+      const f = String(row?.[col] ?? '')
+      return r >= 2 && f.startsWith('=') && !arithFormula(f)
+    })
+  // 같은 이름의 열이 계산 열과 항목으로 함께 있을 수 있어 판정은 열 단위로 한다
+  const computedCols = new Set<number>()
+  headers.forEach((h, c) => {
+    if (RESERVED.includes(h) || (LEGACY_COMPUTED.includes(h) && hasRefFormula(c))) computedCols.add(c)
+  })
+  const computed = [...computedCols].map((c) => headers[c])
   for (let c = 1; c < headers.length; c++) {
     const name = headers[c]
-    if (!name || COMPUTED.includes(name)) continue
+    if (!name) continue
     if (name === '이월잔고') {
       carryCol = c
       continue
     }
+    if (computedCols.has(c)) continue
     const kind: Kind = c < expenseStart ? '수입' : '지출'
     const pi = prev.findIndex((p) => p.name === name && p.kind === kind)
     const catId = pi >= 0 ? prev.splice(pi, 1)[0].id : newId()
@@ -168,8 +187,10 @@ export async function loadAll(id: string): Promise<{ categories: Category[]; ent
   }
 
   const managed =
-    headers.includes('지출합계') && headers.includes('잔고') && !headers.includes('월급') && !headers.includes('카드합계')
-  ctx = { id, sheetId: sheet.properties.sheetId, headers, expenseStart, carryCol, managed, colOf, rowOf, labelOf, cats: categories }
+    headers.includes('지출합계') &&
+    headers.includes('잔고') &&
+    !LEGACY_COMPUTED.some((h) => computed.includes(h))
+  ctx = { id, sheetId: sheet.properties.sheetId, headers, expenseStart, carryCol, managed, computed, colOf, rowOf, labelOf, cats: categories }
   return { categories, entries }
 }
 
@@ -363,7 +384,7 @@ export async function addCategory(cat: Category): Promise<void> {
       j = group.length ? Math.max(Math.max(...group), after) : Math.max(c.headers.length, after)
       if (!group.length)
         for (let cc = c.expenseStart; cc < c.headers.length; cc++)
-          if (COMPUTED.includes(c.headers[cc])) {
+          if (c.computed.includes(c.headers[cc])) {
             j = Math.max(cc, after)
             break
           }
@@ -447,7 +468,7 @@ export async function deleteCategory(id: string): Promise<void> {
     let next = expCols.length ? Math.min(...expCols) : -1
     if (next < 0)
       for (let cc = col; cc < c.headers.length; cc++)
-        if (COMPUTED.includes(c.headers[cc])) {
+        if (c.computed.includes(c.headers[cc])) {
           next = cc
           break
         }
