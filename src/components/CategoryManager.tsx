@@ -102,17 +102,17 @@ export default function CategoryManager({ categories, entries, onChange, onDelet
               >
                 {c.hidden ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
+              {/* 삭제는 열을 통째로 지운다 — 기록이 있으면 과거 데이터까지 사라지므로 숨김으로 유도 */}
               <button
                 className="icon danger"
-                title="삭제"
+                disabled={count(c.id) > 0}
+                title={
+                  count(c.id) > 0
+                    ? `기록 ${count(c.id)}건이 있어 삭제할 수 없습니다 — 눈 버튼으로 숨기세요`
+                    : '삭제'
+                }
                 onClick={() => {
-                  const n = count(c.id)
-                  if (
-                    window.confirm(
-                      `'${c.name}' 항목을 삭제할까요?${n ? `\n이 항목의 기록 ${n}건도 함께 삭제됩니다.` : ''}`,
-                    )
-                  )
-                    onDelete(c.id)
+                  if (window.confirm(`'${c.name}' 항목을 삭제할까요?`)) onDelete(c.id)
                 }}
               >
                 <Trash2 size={15} />
@@ -140,7 +140,9 @@ export default function CategoryManager({ categories, entries, onChange, onDelet
       <p className="hint">
         <GripVertical size={12} style={{ verticalAlign: -1 }} /> 핸들을 끌어 순서를 바꿀 수 있습니다. 합산/제외 버튼:
         '제외'로 바꾸면 표시는 되지만 합계·잔고 계산에서 빠집니다.{' '}
-        <EyeOff size={12} style={{ verticalAlign: -1 }} /> 숨김: 월별 뷰에서 숨겨지며, 기록이 있는 달에는 표시됩니다.
+        <EyeOff size={12} style={{ verticalAlign: -1 }} /> 숨김: 월별 뷰에서 숨겨지며, 기록이 있는 달에는 표시됩니다.{' '}
+        <Trash2 size={12} style={{ verticalAlign: -1 }} /> 삭제는 시트의 열을 통째로 지우므로, 기록이 있는 항목은 지울 수
+        없습니다 — 쓰지 않는 항목은 숨김으로 두세요.
       </p>
     </div>
   )
