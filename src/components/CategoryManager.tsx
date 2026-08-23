@@ -24,7 +24,7 @@ function NameInput({ name, onCommit }: { name: string; onCommit: (n: string) => 
         if (t && t !== name) onCommit(t)
         else setText(name)
       }}
-      onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+      onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && (e.target as HTMLInputElement).blur()}
     />
   )
 }

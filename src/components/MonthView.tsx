@@ -137,7 +137,8 @@ export default function MonthView({
                             setMemoEdit(null)
                           }}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                            if (e.key === 'Enter' && !e.nativeEvent.isComposing)
+                              (e.target as HTMLInputElement).blur()
                             if (e.key === 'Escape') setMemoEdit(null)
                           }}
                         />
