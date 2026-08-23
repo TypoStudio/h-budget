@@ -1146,6 +1146,31 @@ ol.hint {
   border-top: 2px solid var(--accent);
 }
 
+/* ── 사이트 푸터 ──────────────────────────────────────── */
+.site-footer {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 4px 16px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.site-footer a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--line);
+}
+.site-footer a:hover {
+  color: var(--accent-text);
+  border-bottom-color: currentColor;
+}
+.site-footer .copyright {
+  margin-left: auto;
+}
+
 @media print {
   header,
   .no-print {
