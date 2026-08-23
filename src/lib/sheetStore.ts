@@ -291,12 +291,24 @@ async function writeHeaderNote(cat: Category): Promise<void> {
   ])
 }
 
+/** 금액 셀은 소수점 없는 원화로 통일한다 — 새로 생긴 행·열은 서식이 비어 있다 */
+function wonFormat(sheetId: number, row: number, col: number): unknown {
+  return {
+    repeatCell: {
+      range: { sheetId, startRowIndex: row - 1, endRowIndex: row, startColumnIndex: col, endColumnIndex: col + 1 },
+      cell: { userEnteredFormat: { numberFormat: { type: 'CURRENCY', pattern: '"₩"#,##0' } } },
+      fields: 'userEnteredFormat.numberFormat',
+    },
+  }
+}
+
 /** 금액(또는 수식) 일괄 기록. amount가 null이면 셀을 비운다 */
 export async function setAmounts(
   list: { month: string; categoryId: string; amount: number | null; formula?: string }[],
 ): Promise<void> {
   const c = need()
   const data: { range: string; values: unknown[][] }[] = []
+  const cells: [number, number][] = []
   let carryTouched = false
   for (const it of list) {
     const row = await ensureMonthRow(it.month)
@@ -307,8 +319,12 @@ export async function setAmounts(
       range: `${LEDGER}!${a1(col)}${row}`,
       values: [[it.amount == null ? '' : it.formula ? `=${it.formula}` : it.amount]],
     })
+    cells.push([row, col])
   }
-  if (data.length) await gs.batchSetValues(c.id, data)
+  if (data.length) {
+    await gs.batchSetValues(c.id, data)
+    await gs.batchUpdate(c.id, cells.map(([row, col]) => wonFormat(c.sheetId, row, col)))
+  }
   // 이월을 '자동으로' 되돌리면 관리 시트는 전월 잔고 수식을 복원한다
   if (carryTouched && c.managed) await rewriteManaged()
 }
