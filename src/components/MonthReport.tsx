@@ -1,4 +1,6 @@
-import { Printer, X } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Image, Printer, X } from 'lucide-react'
+import { toPng } from 'html-to-image'
 import type { Category, Entry, Kind, MonthStats } from '../types'
 import { fmt } from '../lib/calc'
 
@@ -18,6 +20,31 @@ interface Row {
 /** 원본 '당월' 시트처럼 인쇄/캡처용으로 깔끔하게 정리한 당월 요약 */
 export default function MonthReport({ categories, entries, month, stats, onClose }: Props) {
   const [y, m] = month.split('-')
+  const reportRef = useRef<HTMLDivElement>(null)
+  const [saving, setSaving] = useState(false)
+
+  /** 리포트 영역만 PNG로 저장 (화면에 보이는 테마 그대로) */
+  const saveImage = async () => {
+    const node = reportRef.current
+    if (!node) return
+    setSaving(true)
+    try {
+      // skipFonts: 시스템 폰트만 쓰므로 폰트 임베드(외부 fetch) 단계를 건너뛴다
+      const url = await toPng(node, {
+        pixelRatio: 2,
+        skipFonts: true,
+        backgroundColor: getComputedStyle(node).backgroundColor,
+      })
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `가계부-${month}.png`
+      a.click()
+    } catch {
+      alert('이미지를 만들지 못했습니다.')
+    } finally {
+      setSaving(false)
+    }
+  }
   const entryOf = new Map(entries.filter((e) => e.month === month).map((e) => [e.categoryId, e]))
 
   const rows = (kind: Kind, excluded: boolean): Row[] =>
@@ -65,6 +92,9 @@ export default function MonthReport({ categories, entries, month, stats, onClose
   return (
     <div>
       <div className="no-print" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginBottom: 12 }}>
+        <button disabled={saving} onClick={() => void saveImage()}>
+          <Image size={15} /> {saving ? '저장 중…' : '이미지로 저장'}
+        </button>
         <button onClick={() => window.print()}>
           <Printer size={15} /> 인쇄
         </button>
@@ -73,7 +103,7 @@ export default function MonthReport({ categories, entries, month, stats, onClose
         </button>
       </div>
 
-      <div className="report">
+      <div className="report" ref={reportRef}>
         <h1 className="report-title">
           {y}년 {Number(m)}월 가계부
         </h1>
