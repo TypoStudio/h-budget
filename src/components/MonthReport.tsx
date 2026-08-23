@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { Image, Printer, X } from 'lucide-react'
-import { toPng } from 'html-to-image'
+import { toBlob } from 'html-to-image'
 import type { Category, Entry, Kind, MonthStats } from '../types'
 import { fmt } from '../lib/calc'
 
@@ -30,15 +30,30 @@ export default function MonthReport({ categories, entries, month, stats, onClose
     setSaving(true)
     try {
       // skipFonts: 시스템 폰트만 쓰므로 폰트 임베드(외부 fetch) 단계를 건너뛴다
-      const url = await toPng(node, {
+      const blob = await toBlob(node, {
         pixelRatio: 2,
         skipFonts: true,
         backgroundColor: getComputedStyle(node).backgroundColor,
       })
+      if (!blob) throw new Error('이미지를 만들지 못했습니다.')
+      const name = `가계부-${month}.png`
+      // 모바일에서 그냥 내려받으면 파일 앱으로 들어간다 — 공유 시트를 열어 사진 앱에 저장할 수 있게 한다
+      const file = new File([blob], name, { type: 'image/png' })
+      if (navigator.maxTouchPoints > 0 && navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file] })
+          return
+        } catch (e) {
+          // 사용자가 공유를 취소한 경우엔 내려받기까지 하지 않는다
+          if (e instanceof Error && e.name === 'AbortError') return
+        }
+      }
+      const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `가계부-${month}.png`
+      a.download = name
       a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
     } catch {
       alert('이미지를 만들지 못했습니다.')
     } finally {
