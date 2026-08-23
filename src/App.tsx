@@ -305,7 +305,7 @@ export default function App() {
         </p>
 
         <div className="intro">
-          <h2>이런 걸 할 수 있어요</h2>
+          <h3 className="intro-title">이런 걸 할 수 있어요</h3>
           <ul>
             <li>월별로 수입·지출 항목을 만들고 금액 입력 (“15000-5000” 같은 계산식도 그대로)</li>
             <li>이월잔고·수입합계·지출합계·잔고 자동 계산</li>
@@ -313,7 +313,7 @@ export default function App() {
             <li>쓰던 스프레드시트를 연결하거나 새로 만들어 시작</li>
           </ul>
 
-          <h2>요청하는 구글 권한과 사용 목적</h2>
+          <h3 className="intro-title">요청하는 구글 권한과 사용 목적</h3>
           <ul>
             <li>
               <b>스프레드시트 보기 및 관리</b> — 연결한 가계부 시트의 항목·금액·메모를 읽고 저장하는 데만

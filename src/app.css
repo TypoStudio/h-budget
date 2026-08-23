@@ -226,6 +226,9 @@ input.amount {
 .center p {
   color: var(--muted);
 }
+.center h1 + p {
+  margin-top: 10px;
+}
 .center .primary {
   width: 100%;
   padding: 10px;
@@ -1148,23 +1151,31 @@ ol.hint {
 
 /* ── 로그인 화면 소개 ─────────────────────────────────── */
 .intro {
-  margin: 14px 0 18px;
+  margin: 16px 0 20px;
   font-size: 0.88rem;
 }
-.intro h2 {
-  margin: 14px 0 6px;
+/* 소제목에 h2를 쓰면 테마별 '카드 제목 밴드' 스타일을 받아 카드 폭까지 번지므로 h3를 쓴다 */
+.intro-title {
+  margin: 16px 0 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
   font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
 }
 .intro ul {
   margin: 0;
-  padding-left: 18px;
-  color: var(--muted);
+  padding-left: 20px;
+  list-style: disc;
 }
 .intro li {
-  margin: 3px 0;
+  margin: 5px 0;
+  line-height: 1.55;
 }
 .intro .hint {
-  margin-top: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
 }
 .intro a {
   color: var(--accent-text);
