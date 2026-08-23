@@ -178,16 +178,25 @@ async function ensureMonthRow(month: string): Promise<number> {
   const c = need()
   const got = c.rowOf.get(month)
   if (got) return got
-  const sorted = [...c.rowOf.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))
-  let prev: [string, number] | undefined
-  for (const it of sorted) if (it[0] < month) prev = it
-  const template = prev ?? sorted[0]
-  const destRow = prev ? prev[1] + 1 : sorted.length ? sorted[0][1] : 4
+  // 시트가 최신월을 위에 두는 내림차순인지 보고 같은 방향으로 끼워 넣는다.
+  // 방향은 이웃한 월 행끼리 비교해 다수결로 판단 (중간에 어긋난 행이 있어도 견딘다)
+  const byRow = [...c.rowOf.entries()].sort((a, b) => a[1] - b[1])
+  let down = 0
+  for (let i = 1; i < byRow.length; i++) down += byRow[i][0] < byRow[i - 1][0] ? 1 : -1
+  // 다수결이 갈리면(잘못 끼어든 행이 있을 때) 맨 위·맨 아래 월의 전체 추세로 결정하고,
+  // 판단할 행이 없으면 최신월이 위로 오는 내림차순을 기본으로 한다
+  const desc = down !== 0 ? down > 0 : byRow.length < 2 || byRow[0][0] > byRow[byRow.length - 1][0]
+  // 새 행 바로 위에 와야 할 월 = 정렬 방향상 이 월보다 앞에 오는 마지막 월
+  let above: [string, number] | undefined
+  for (const it of byRow) if (desc ? it[0] > month : it[0] < month) above = it
+  const template = above ?? byRow[0]
+  const destRow = above ? above[1] + 1 : byRow.length ? byRow[0][1] : 4
   const requests: unknown[] = [
     {
       insertDimension: {
         range: { sheetId: c.sheetId, dimension: 'ROWS', startIndex: destRow - 1, endIndex: destRow },
-        inheritFromBefore: destRow > 4,
+        // 맨 위에 넣을 때는 헤더가 아니라 아래 행의 서식을 물려받아야 한다
+        inheritFromBefore: !!above && destRow > 4,
       },
     },
   ]
