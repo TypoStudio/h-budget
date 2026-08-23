@@ -297,11 +297,11 @@ export default function App() {
     return (
       <div className="center card">
         <h1 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Logo size={30} /> 가계부
+          <Logo size={30} /> Budget Project
         </h1>
         <p>
-          매달 수입과 지출을 <b>내 구글 스프레드시트</b>에 기록하는 웹 가계부입니다. 서버가 없어 모든 기록은
-          내 구글 계정 안에만 저장되고, 앱 없이 시트만 열어도 그대로 볼 수 있습니다.
+          <b>Budget Project</b>는 매달 수입과 지출을 <b>내 구글 스프레드시트</b>에 기록하는 웹 가계부입니다.
+          서버가 없어 모든 기록은 내 구글 계정 안에만 저장되고, 앱 없이 시트만 열어도 그대로 볼 수 있습니다.
         </p>
 
         <div className="intro">
@@ -425,7 +425,7 @@ export default function App() {
     <div className="app">
       <header>
         <span className="title">
-          <Logo /> 가계부
+          <Logo /> Budget Project
         </span>
         <nav>
           <button className={tab === 'month' ? 'active' : ''} onClick={() => setTab('month')}>
