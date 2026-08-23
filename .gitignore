@@ -3,3 +3,5 @@ dist/
 .omc/
 .DS_Store
 *.local
+.firebase/
+firebase-debug.log
