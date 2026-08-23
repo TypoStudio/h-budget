@@ -6,6 +6,7 @@ import {
   CARRYOVER_ID,
   createSpreadsheet,
   deleteCategory as sheetDeleteCategory,
+  deleteMonth as sheetDeleteMonth,
   loadAll,
   moveCategoryTo as sheetMoveCategoryTo,
   newId,
@@ -224,6 +225,15 @@ export default function App() {
     run(() => setAmounts(copied))
   }
 
+  /** 그 달 기록을 통째로 삭제 — 시트에서도 해당 월 행이 사라진다 */
+  const deleteMonth = (m: string) => {
+    setEntries(entries.filter((e) => e.month !== m))
+    run(async () => {
+      await sheetDeleteMonth(m)
+      await reloadData()
+    })
+  }
+
   const addCategory = (kind: Kind, name: string, excluded: boolean) => {
     const order = categories.length ? Math.max(...categories.map((c) => c.order)) + 1 : 0
     const cat: Category = { id: newId(), kind, name, excluded, hidden: false, order }
@@ -419,6 +429,7 @@ export default function App() {
           onSetMemo={setMemo}
           onAddCategory={addCategory}
           onCopyMonth={copyMonth}
+          onDeleteMonth={deleteMonth}
         />
       )}
 

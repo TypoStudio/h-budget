@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, CircleSlash2, Copy, Eye, EyeOff, Plus, Printer, StickyNote } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CircleSlash2, Copy, Eye, EyeOff, Plus, Printer, StickyNote, Trash2 } from 'lucide-react'
 import type { Category, Entry, Kind } from '../types'
 import { computeAllMonths, fmt, shiftMonth, statsFor } from '../lib/calc'
 import { CARRYOVER_ID } from '../lib/sheetStore'
@@ -16,6 +16,7 @@ interface Props {
   onSetMemo: (month: string, categoryId: string, memo: string | null) => void
   onAddCategory: (kind: Kind, name: string, excluded: boolean) => void
   onCopyMonth: (from: string, to: string) => void
+  onDeleteMonth: (month: string) => void
 }
 
 export default function MonthView({
@@ -27,6 +28,7 @@ export default function MonthView({
   onSetMemo,
   onAddCategory,
   onCopyMonth,
+  onDeleteMonth,
 }: Props) {
   const all = useMemo(() => computeAllMonths(categories, entries), [categories, entries])
   const stats = statsFor(all, month)
@@ -223,6 +225,22 @@ export default function MonthView({
         <button style={{ marginLeft: 'auto' }} title="인쇄/캡처용 보기" onClick={() => setShowReport(true)}>
           <Printer size={15} />
         </button>
+        {entryMap.size > 0 && (
+          <button
+            title="이 달 기록 전체 삭제 — 시트에서 이 달 행이 통째로 사라집니다"
+            onClick={() => {
+              const [y, mo] = month.split('-')
+              if (
+                confirm(
+                  `${y}년 ${Number(mo)}월 기록 ${entryMap.size}건을 모두 삭제할까요?\n시트에서 이 달 행이 통째로 사라집니다.`,
+                )
+              )
+                onDeleteMonth(month)
+            }}
+          >
+            <Trash2 size={15} />
+          </button>
+        )}
       </div>
 
       <div className="summary">

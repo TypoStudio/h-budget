@@ -407,6 +407,21 @@ export async function updateCategory(cat: Category): Promise<void> {
   }
 }
 
+/** 월 행을 시트에서 통째로 지운다 — 그 달 기록이 모두 사라진다 */
+export async function deleteMonth(month: string): Promise<void> {
+  const c = need()
+  const row = c.rowOf.get(month)
+  if (row == null) return
+  await gs.batchUpdate(c.id, [
+    { deleteDimension: { range: { sheetId: c.sheetId, dimension: 'ROWS', startIndex: row - 1, endIndex: row } } },
+  ])
+  c.rowOf.delete(month)
+  c.labelOf.delete(month)
+  for (const [m, r] of c.rowOf) if (r > row) c.rowOf.set(m, r - 1)
+  // 남은 월들의 이월 수식 체인이 끊기므로 다시 쓴다
+  if (c.managed) await rewriteManaged()
+}
+
 export async function deleteCategory(id: string): Promise<void> {
   const c = need()
   const col = c.colOf.get(id)
