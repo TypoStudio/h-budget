@@ -1050,6 +1050,12 @@ ol.hint {
   border-right: none;
   background: none;
 }
+.report-footer {
+  margin: 18px 0 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+}
 .report-summary {
   max-width: 320px;
   margin-left: auto;

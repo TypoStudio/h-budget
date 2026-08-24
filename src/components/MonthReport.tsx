@@ -23,38 +23,52 @@ export default function MonthReport({ categories, entries, month, stats, onClose
   const reportRef = useRef<HTMLDivElement>(null)
   const [saving, setSaving] = useState(false)
 
-  /** 리포트 영역만 PNG로 저장 (화면에 보이는 테마 그대로) */
+  /**
+   * 리포트를 PNG로 만들어 새 창에 띄운다.
+   * 곧바로 내려받으면 모바일에서 파일 앱으로 들어가므로, 이미지를 열어 두고
+   * 길게 누르거나(모바일) 우클릭해서(데스크톱) 직접 저장하게 한다.
+   */
   const saveImage = async () => {
     const node = reportRef.current
     if (!node) return
+    // 변환을 기다린 뒤 창을 열면 팝업 차단에 걸리므로 클릭 직후에 먼저 연다
+    const win = window.open('', '_blank')
+    if (win) win.document.write('<title>이미지 만드는 중…</title><p style="font:14px sans-serif">이미지 만드는 중…</p>')
     setSaving(true)
     try {
-      // skipFonts: 시스템 폰트만 쓰므로 폰트 임베드(외부 fetch) 단계를 건너뛴다
+      // skipFonts: 시스템 폰트만 쓰므로 폰트 임베드(외부 fetch) 단계를 건너뛴다.
+      // 폭·높이를 넘겨야 가운데 정렬(margin auto) 때문에 옆이 잘리지 않는다
       const blob = await toBlob(node, {
         pixelRatio: 2,
         skipFonts: true,
+        width: node.scrollWidth,
+        height: node.scrollHeight,
+        style: { margin: '0' },
         backgroundColor: getComputedStyle(node).backgroundColor,
       })
       if (!blob) throw new Error('이미지를 만들지 못했습니다.')
-      const name = `가계부-${month}.png`
-      // 모바일에서 그냥 내려받으면 파일 앱으로 들어간다 — 공유 시트를 열어 사진 앱에 저장할 수 있게 한다
-      const file = new File([blob], name, { type: 'image/png' })
-      if (navigator.maxTouchPoints > 0 && navigator.canShare?.({ files: [file] })) {
-        try {
-          await navigator.share({ files: [file] })
-          return
-        } catch (e) {
-          // 사용자가 공유를 취소한 경우엔 내려받기까지 하지 않는다
-          if (e instanceof Error && e.name === 'AbortError') return
-        }
-      }
       const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = name
-      a.click()
-      setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      const name = `가계부-${month}.png`
+      if (win) {
+        win.document.write(
+          `<title>${name}</title>` +
+            '<style>body{margin:0;background:#111;display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px}' +
+            'img{max-width:100%;height:auto;box-shadow:0 2px 12px rgba(0,0,0,.4)}' +
+            'p{font:13px/1.5 system-ui,sans-serif;color:#ddd;margin:0;text-align:center}</style>' +
+            `<img src="${url}" alt="${name}">` +
+            '<p>이미지를 길게 누르거나 오른쪽 클릭해 저장하세요.</p>',
+        )
+        win.document.close()
+      } else {
+        // 팝업이 막힌 경우엔 내려받기로 대신한다
+        const a = document.createElement('a')
+        a.href = url
+        a.download = name
+        a.click()
+        setTimeout(() => URL.revokeObjectURL(url), 60_000)
+      }
     } catch {
+      win?.close()
       alert('이미지를 만들지 못했습니다.')
     } finally {
       setSaving(false)
@@ -148,6 +162,10 @@ export default function MonthReport({ categories, entries, month, stats, onClose
         </table>
 
         {refRows.length > 0 && table('참고 (합산 제외)', refRows)}
+
+        <p className="report-footer">
+          © {new Date().getFullYear()} 가계부 · {location.host}
+        </p>
       </div>
     </div>
   )
