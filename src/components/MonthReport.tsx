@@ -22,18 +22,16 @@ export default function MonthReport({ categories, entries, month, stats, onClose
   const [y, m] = month.split('-')
   const reportRef = useRef<HTMLDivElement>(null)
   const [saving, setSaving] = useState(false)
+  const [preview, setPreview] = useState<string | null>(null)
 
   /**
-   * 리포트를 PNG로 만들어 새 창에 띄운다.
-   * 곧바로 내려받으면 모바일에서 파일 앱으로 들어가므로, 이미지를 열어 두고
-   * 길게 누르거나(모바일) 우클릭해서(데스크톱) 직접 저장하게 한다.
+   * 리포트를 PNG로 만들어 페이지 안 팝업에 띄운다.
+   * 곧바로 내려받으면 모바일에서 사진첩이 아니라 파일 앱으로 들어가므로,
+   * 이미지를 띄워 두고 길게 누르거나(모바일) 우클릭해서(데스크톱) 직접 저장하게 한다.
    */
   const saveImage = async () => {
     const node = reportRef.current
     if (!node) return
-    // 변환을 기다린 뒤 창을 열면 팝업 차단에 걸리므로 클릭 직후에 먼저 연다
-    const win = window.open('', '_blank')
-    if (win) win.document.write('<title>이미지 만드는 중…</title><p style="font:14px sans-serif">이미지 만드는 중…</p>')
     setSaving(true)
     try {
       // skipFonts: 시스템 폰트만 쓰므로 폰트 임베드(외부 fetch) 단계를 건너뛴다.
@@ -47,33 +45,19 @@ export default function MonthReport({ categories, entries, month, stats, onClose
         backgroundColor: getComputedStyle(node).backgroundColor,
       })
       if (!blob) throw new Error('이미지를 만들지 못했습니다.')
-      const url = URL.createObjectURL(blob)
-      const name = `가계부-${month}.png`
-      if (win) {
-        win.document.write(
-          `<title>${name}</title>` +
-            '<style>body{margin:0;background:#111;display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px}' +
-            'img{max-width:100%;height:auto;box-shadow:0 2px 12px rgba(0,0,0,.4)}' +
-            'p{font:13px/1.5 system-ui,sans-serif;color:#ddd;margin:0;text-align:center}</style>' +
-            `<img src="${url}" alt="${name}">` +
-            '<p>이미지를 길게 누르거나 오른쪽 클릭해 저장하세요.</p>',
-        )
-        win.document.close()
-      } else {
-        // 팝업이 막힌 경우엔 내려받기로 대신한다
-        const a = document.createElement('a')
-        a.href = url
-        a.download = name
-        a.click()
-        setTimeout(() => URL.revokeObjectURL(url), 60_000)
-      }
+      setPreview(URL.createObjectURL(blob))
     } catch {
-      win?.close()
       alert('이미지를 만들지 못했습니다.')
     } finally {
       setSaving(false)
     }
   }
+
+  const closePreview = () => {
+    if (preview) URL.revokeObjectURL(preview)
+    setPreview(null)
+  }
+
   const entryOf = new Map(entries.filter((e) => e.month === month).map((e) => [e.categoryId, e]))
 
   const rows = (kind: Kind, excluded: boolean): Row[] =>
@@ -167,6 +151,18 @@ export default function MonthReport({ categories, entries, month, stats, onClose
           © {new Date().getFullYear()} 가계부 · {location.host}
         </p>
       </div>
+
+      {preview && (
+        <div className="img-modal no-print" onClick={closePreview}>
+          <div className="img-modal-box" onClick={(e) => e.stopPropagation()}>
+            <img src={preview} alt={`가계부 ${y}년 ${Number(m)}월`} />
+            <p className="hint">이미지를 길게 누르거나 오른쪽 클릭해 저장하세요.</p>
+            <button onClick={closePreview}>
+              <X size={15} /> 닫기
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
