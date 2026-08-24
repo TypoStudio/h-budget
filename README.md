@@ -1,6 +1,6 @@
 # 가계부 (h-budget) — 구글시트 가계부
 
-**https://house-budget-typostudio.web.app/**
+**https://house-budget.typostudio.dev/**
 
 브라우저에서 구글 로그인 후 **본인 계정의 구글 스프레드시트**에 가계부를 기록하는 정적 웹앱입니다. 서버가 없으므로 데이터는 구글시트에만 저장됩니다.
 
@@ -10,7 +10,7 @@
 - 수입/지출 항목 자유롭게 추가 · 수정 · 삭제 · 순서 변경
 - **합산제외 항목**: 표시는 되지만 수입/지출 합계와 잔고 계산에서 제외 (참고용 기록)
 - 월별 뷰: 이월잔고(자동 = 전월 잔고, 수동 입력 가능) / 수입합계 / 지출합계 / 잔고
-- 인쇄/캡처용 보기: 그 달 요약을 한 장으로 정리해 인쇄하거나 **PNG 이미지로 저장** (모바일에서는 공유 시트가 열려 사진 앱에 바로 저장)
+- 인쇄/캡처용 보기: 그 달 요약을 한 장으로 정리해 인쇄하거나 **PNG 이미지로 저장** (새 창에 이미지가 열려 길게 누르거나 우클릭해 저장)
 - 스프레드시트 연결: 기존 시트 URL 붙여넣기 또는 새 스프레드시트 생성
 - 기존 `가계부` 시트(엑셀 형식)가 있으면 **데이터 가져오기** 지원
 
@@ -65,4 +65,6 @@ npm run dev      # http://localhost:5173
 npm run build    # dist/ 정적 파일 생성
 ```
 
-배포는 `dist/`를 GitHub Pages, Cloudflare Pages 등 아무 정적 호스팅에 올리면 됩니다. 배포 주소를 OAuth 클라이언트의 "승인된 JavaScript 원본"에 추가하는 것을 잊지 마세요.
+배포는 `firebase deploy --only hosting`으로 `dist/`를 Firebase Hosting에 올립니다 (`firebase.json`의 사이트 `house-budget-typostudio`, 커스텀 도메인 `house-budget.typostudio.dev`). 기존 GitHub Pages 주소는 새 주소로 넘기는 리다이렉트(`redirect/`)만 배포합니다.
+
+배포 주소를 OAuth 클라이언트의 "승인된 JavaScript 원본"에 추가하는 것을 잊지 마세요.
