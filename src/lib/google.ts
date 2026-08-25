@@ -1,6 +1,7 @@
 const SHEETS = 'https://sheets.googleapis.com/v4/spreadsheets'
-const SCOPE =
-  'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.metadata.readonly'
+// drive.file은 비민감 범위 — 피커에서 사용자가 고른 파일에만 접근한다.
+// (예전의 drive.metadata.readonly는 '제한된 범위'라 구글 검증 부담이 크다)
+const SCOPE = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file'
 const LS_TOKEN = 'hb.token'
 /** 이 브라우저에서 한 번이라도 권한에 동의했는지 — 조용한 재로그인 시도 여부를 판단한다 */
 const LS_CONSENT = 'hb.consent'
@@ -162,67 +163,44 @@ export const gs = {
   batchUpdate: (id: string, requests: unknown[]) => call('POST', `${SHEETS}/${id}:batchUpdate`, { requests }),
 }
 
-export interface DriveFile {
-  id: string
-  name: string
-  modifiedTime?: string
-  parents?: string[]
-  /** 앱에서 채우는 폴더 경로 */
-  path?: string
+/** 구글 피커로 스프레드시트를 고르게 한다. 고르지 않고 닫으면 null */
+export async function pickSpreadsheet(apiKey: string): Promise<{ id: string; name: string } | null> {
+  if (!accessToken) throw new Error('로그인이 필요합니다.')
+  const g = await pickerReady()
+  return new Promise((resolve) => {
+    const picker = new g.picker.PickerBuilder()
+      .setOAuthToken(accessToken)
+      .setDeveloperKey(apiKey)
+      .setTitle('가계부로 쓸 스프레드시트 선택')
+      .addView(new g.picker.DocsView(g.picker.ViewId.SPREADSHEETS).setIncludeFolders(true))
+      .setCallback((data: { action: string; docs?: { id: string; name: string }[] }) => {
+        if (data.action === g.picker.Action.PICKED) {
+          const doc = data.docs?.[0]
+          resolve(doc ? { id: doc.id, name: doc.name } : null)
+        } else if (data.action === g.picker.Action.CANCEL) {
+          resolve(null)
+        }
+      })
+      .build()
+    picker.setVisible(true)
+  })
 }
 
-const DRIVE_LIST = 'https://www.googleapis.com/drive/v3/files?q='
-
-export const drive = {
-  listSpreadsheets: async (query = ''): Promise<{ files: DriveFile[] }> => {
-    const base = "mimeType='application/vnd.google-apps.spreadsheet' and trashed=false"
-    const tail =
-      '&orderBy=' + encodeURIComponent('modifiedTime desc') + '&pageSize=30&fields=files(id,name,modifiedTime,parents)'
-    const esc = query.trim().replace(/'/g, "\\'")
-    if (!esc) return call('GET', DRIVE_LIST + encodeURIComponent(base) + tail)
-    // 이름이 일치하는 폴더를 찾아 그 폴더 안의 시트도 검색 대상에 포함
-    let parentClause = ''
-    try {
-      const folders = await call(
-        'GET',
-        DRIVE_LIST +
-          encodeURIComponent(`mimeType='application/vnd.google-apps.folder' and trashed=false and name contains '${esc}'`) +
-          '&pageSize=10&fields=files(id)',
-      )
-      parentClause = ((folders.files ?? []) as { id: string }[]).map((f) => ` or '${f.id}' in parents`).join('')
-    } catch {
-      /* 폴더 검색이 실패해도 이름 검색은 계속 */
+/** 피커 스크립트(api.js)는 async로 로드되므로 준비될 때까지 기다린다 */
+function pickerReady(timeoutMs = 10_000): Promise<any> {
+  const start = Date.now()
+  return new Promise((resolve, reject) => {
+    const tick = () => {
+      const w = window as unknown as { gapi?: any; google?: any }
+      if (w.google?.picker) resolve(w.google)
+      else if (w.gapi?.load)
+        w.gapi.load('picker', {
+          callback: () => resolve((window as unknown as { google: any }).google),
+          onerror: () => reject(new Error('구글 피커를 불러오지 못했습니다.')),
+        })
+      else if (Date.now() - start > timeoutMs) reject(new Error('구글 피커를 불러오지 못했습니다.'))
+      else setTimeout(tick, 100)
     }
-    const q = `${base} and (name contains '${esc}'${parentClause})`
-    return call('GET', DRIVE_LIST + encodeURIComponent(q) + tail)
-  },
-}
-
-const folderCache = new Map<string, { name: string; parent?: string } | null>()
-
-async function getFolderInfo(id: string): Promise<{ name: string; parent?: string } | null> {
-  const cached = folderCache.get(id)
-  if (cached !== undefined) return cached
-  try {
-    const f = await call('GET', `https://www.googleapis.com/drive/v3/files/${id}?fields=id,name,parents`)
-    const info = { name: f.name as string, parent: f.parents?.[0] as string | undefined }
-    folderCache.set(id, info)
-    return info
-  } catch {
-    folderCache.set(id, null)
-    return null
-  }
-}
-
-/** 상위 폴더를 거슬러 올라가 '내 드라이브 / 폴더 / …' 형태의 경로를 만든다 */
-export async function folderPath(parentId?: string): Promise<string> {
-  const parts: string[] = []
-  let cur = parentId
-  for (let depth = 0; cur && depth < 6; depth++) {
-    const info = await getFolderInfo(cur)
-    if (!info) break
-    parts.unshift(info.name)
-    cur = info.parent
-  }
-  return parts.join(' / ')
+    tick()
+  })
 }

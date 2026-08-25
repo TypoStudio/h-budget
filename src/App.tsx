@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { ExternalLink, FileSpreadsheet, LogOut, RefreshCw, Search } from 'lucide-react'
-import { drive, folderPath, hasConsented, restoreToken, signIn, signOut, type DriveFile } from './lib/google'
+import { ExternalLink, FileSpreadsheet, LogOut, RefreshCw } from 'lucide-react'
+import { hasConsented, pickSpreadsheet, restoreToken, signIn, signOut } from './lib/google'
 import {
   addCategory as sheetAddCategory,
   CARRYOVER_ID,
@@ -25,6 +25,9 @@ import Logo from './components/Logo'
 const CLIENT_ID = '19660777308-ppephgm14ahfh54anmp243h094pgao4v.apps.googleusercontent.com'
 const LS_SHEET = 'hb.spreadsheetId'
 const LS_THEME = 'hb.theme'
+// 구글 피커용 API 키. 비어 있으면 '내 드라이브에서 선택' 버튼을 숨기고
+// URL 붙여넣기·새로 만들기만 제공한다
+const PICKER_API_KEY = 'AIzaSyBLHKj_MLd-atQL-D3d0xjIyRd7Eo7Bix8'
 
 const THEMES = [
   { id: 'excel', label: '엑셀' },
@@ -42,10 +45,6 @@ export default function App() {
   const [spreadsheetId, setSpreadsheetId] = useState<string | null>(null)
   const [sheetTitle, setSheetTitle] = useState('')
   const [sheetInput, setSheetInput] = useState('')
-  const [sheetList, setSheetList] = useState<DriveFile[] | null>(null)
-  const [listError, setListError] = useState<string | null>(null)
-  const [listQuery, setListQuery] = useState('')
-  const [listVersion, setListVersion] = useState(0)
   const [categories, setCategories] = useState<Category[]>([])
   const [entries, setEntries] = useState<Entry[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -135,38 +134,15 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // 시트 선택 화면에서 내 스프레드시트 목록 로드 (검색어는 디바운스)
-  useEffect(() => {
-    if (!signedIn || loaded) return
-    let cancelled = false
-    setSheetList(null)
-    setListError(null)
-    const t = window.setTimeout(
-      () => {
-        drive
-          .listSpreadsheets(listQuery)
-          .then(async (r) => {
-            const files = r.files ?? []
-            const paths = await Promise.all(files.map((f) => folderPath(f.parents?.[0]).catch(() => '')))
-            if (!cancelled) setSheetList(files.map((f, i) => ({ ...f, path: paths[i] })))
-          })
-          .catch((e) => {
-            if (cancelled) return
-            setSheetList([])
-            setListError(
-              e instanceof Error && e.message.includes('403')
-                ? 'Google Drive API가 사용 설정되지 않았거나 권한이 없어 목록을 불러올 수 없습니다. URL 붙여넣기는 계속 사용할 수 있습니다.'
-                : '스프레드시트 목록을 불러오지 못했습니다. URL 붙여넣기를 이용해주세요.',
-            )
-          })
-      },
-      listQuery ? 400 : 0,
-    )
-    return () => {
-      cancelled = true
-      window.clearTimeout(t)
+  const handlePick = async () => {
+    setError(null)
+    try {
+      const picked = await pickSpreadsheet(PICKER_API_KEY)
+      if (picked) await connectTo(picked.id)
+    } catch (e) {
+      fail(e)
     }
-  }, [signedIn, loaded, listQuery, listVersion])
+  }
 
   const handleCreate = async () => {
     setBusy(true)
@@ -184,8 +160,6 @@ export default function App() {
     localStorage.removeItem(LS_SHEET)
     setSpreadsheetId(null)
     setLoaded(false)
-    setSheetList(null)
-    setListError(null)
     setCategories([])
     setEntries([])
     setTab('month')
@@ -320,8 +294,8 @@ export default function App() {
               사용합니다.
             </li>
             <li>
-              <b>드라이브 파일 메타데이터 보기</b> — 시트 선택 화면에 내 스프레드시트 목록(파일 이름)을
-              띄우기 위해서만 사용합니다. 이 권한으로 파일 내용은 읽지 않습니다.
+              <b>내가 고른 드라이브 파일</b> — 시트 선택 창에서 직접 고른 스프레드시트에만 접근합니다.
+              고르지 않은 다른 파일은 앱이 보거나 열 수 없습니다.
             </li>
           </ul>
           <p className="hint">
@@ -346,52 +320,10 @@ export default function App() {
         </h1>
         <p>가계부를 저장할 구글 스프레드시트를 선택하세요.</p>
 
-        <div className="list-head">
-          <FileSpreadsheet size={14} /> 내 드라이브의 스프레드시트
-          <button className="icon" title="목록 새로고침" onClick={() => setListVersion((v) => v + 1)}>
-            <RefreshCw size={14} />
+        {PICKER_API_KEY && (
+          <button className="primary" disabled={busy} onClick={() => void handlePick()}>
+            <FileSpreadsheet size={15} /> 내 드라이브에서 선택
           </button>
-        </div>
-        <div className="search-box">
-          <Search size={14} />
-          <input
-            value={listQuery}
-            placeholder="시트 이름으로 검색"
-            onChange={(e) => setListQuery(e.target.value)}
-          />
-        </div>
-        {sheetList === null && <p className="hint">목록 불러오는 중…</p>}
-        {listError && (
-          <div className="hint">
-            {listError}
-            <button
-              className="link"
-              onClick={() => {
-                void signIn(CLIENT_ID)
-                  .then(() => setListVersion((v) => v + 1))
-                  .catch(fail)
-              }}
-            >
-              권한 다시 요청
-            </button>
-          </div>
-        )}
-        {sheetList && sheetList.length === 0 && !listError && (
-          <p className="hint">{listQuery ? '검색 결과가 없습니다.' : '드라이브에 스프레드시트가 없습니다.'}</p>
-        )}
-        {sheetList && sheetList.length > 0 && (
-          <div className="sheet-list">
-            {sheetList.map((f) => (
-              <button key={f.id} disabled={busy} onClick={() => void connectTo(f.id)}>
-                <FileSpreadsheet size={15} style={{ flexShrink: 0 }} />
-                <span className="file-info">
-                  <span className="name">{f.name}</span>
-                  {f.path && <span className="path">{f.path}</span>}
-                </span>
-                {f.modifiedTime && <span className="date">{f.modifiedTime.slice(0, 10)}</span>}
-              </button>
-            ))}
-          </div>
         )}
 
         <div className="add-form">

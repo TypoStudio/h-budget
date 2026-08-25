@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { Image, Printer, X } from 'lucide-react'
-import { toBlob } from 'html-to-image'
+import { toPng } from 'html-to-image'
 import type { Category, Entry, Kind, MonthStats } from '../types'
 import { fmt } from '../lib/calc'
 
@@ -28,6 +28,7 @@ export default function MonthReport({ categories, entries, month, stats, onClose
    * 리포트를 PNG로 만들어 페이지 안 팝업에 띄운다.
    * 곧바로 내려받으면 모바일에서 사진첩이 아니라 파일 앱으로 들어가므로,
    * 이미지를 띄워 두고 길게 누르거나(모바일) 우클릭해서(데스크톱) 직접 저장하게 한다.
+   * blob: URL은 iOS 공유 시트가 이미지 대신 주소를 넘기므로 data: URL로 띄운다.
    */
   const saveImage = async () => {
     const node = reportRef.current
@@ -36,7 +37,7 @@ export default function MonthReport({ categories, entries, month, stats, onClose
     try {
       // skipFonts: 시스템 폰트만 쓰므로 폰트 임베드(외부 fetch) 단계를 건너뛴다.
       // 폭·높이를 넘겨야 가운데 정렬(margin auto) 때문에 옆이 잘리지 않는다
-      const blob = await toBlob(node, {
+      const url = await toPng(node, {
         pixelRatio: 2,
         skipFonts: true,
         width: node.scrollWidth,
@@ -44,8 +45,7 @@ export default function MonthReport({ categories, entries, month, stats, onClose
         style: { margin: '0' },
         backgroundColor: getComputedStyle(node).backgroundColor,
       })
-      if (!blob) throw new Error('이미지를 만들지 못했습니다.')
-      setPreview(URL.createObjectURL(blob))
+      setPreview(url)
     } catch {
       alert('이미지를 만들지 못했습니다.')
     } finally {
@@ -53,10 +53,7 @@ export default function MonthReport({ categories, entries, month, stats, onClose
     }
   }
 
-  const closePreview = () => {
-    if (preview) URL.revokeObjectURL(preview)
-    setPreview(null)
-  }
+  const closePreview = () => setPreview(null)
 
   const entryOf = new Map(entries.filter((e) => e.month === month).map((e) => [e.categoryId, e]))
 

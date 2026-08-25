@@ -30,7 +30,7 @@
 OAuth 클라이언트 ID는 `src/App.tsx`의 `CLIENT_ID` 상수에 고정되어 있습니다. 해당 GCP 프로젝트에서:
 
 1. **Google Sheets API** 사용 설정 (필수)
-2. **Google Drive API** 사용 설정 — 시트 선택 화면의 "내 스프레드시트 목록"에 필요. 미설정 시 목록만 비활성화되고 URL 붙여넣기는 동작
+2. **Google Picker API**(및 Google Drive API) 사용 설정과 **API 키** 발급 — 시트 선택 창에 필요. `src/App.tsx`의 `PICKER_API_KEY`가 비어 있으면 선택 버튼이 숨겨지고 URL 붙여넣기·새로 만들기만 동작
 3. OAuth 클라이언트의 승인된 JavaScript 원본에 `http://localhost:5173` (배포 시 배포 주소도) 추가
 
 로그인 토큰은 localStorage에 저장되어 새로고침 후에도 약 1시간 유지되며, 만료 시 자동 갱신을 시도합니다.
