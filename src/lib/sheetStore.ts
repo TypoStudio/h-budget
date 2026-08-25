@@ -22,17 +22,21 @@ export function newId(): string {
   return crypto.randomUUID().slice(0, 8)
 }
 
-export function parseSpreadsheetId(input: string): string | null {
-  const m = input.match(/\/d\/([a-zA-Z0-9-_]+)/)
-  if (m) return m[1]
-  const t = input.trim()
-  if (/^[a-zA-Z0-9-_]{20,}$/.test(t)) return t
-  return null
+export async function createSpreadsheet(): Promise<string> {
+  // 기본 '시트1'을 만들고 '가계부'를 덧붙이면 빈 탭이 남으므로, 처음부터 탭 하나만 만든다
+  const res = await gs.create('가계부', LEDGER)
+  const id = res.spreadsheetId as string
+  await initLedger(id)
+  return id
 }
 
-export async function createSpreadsheet(): Promise<string> {
-  const res = await gs.create('가계부')
-  return res.spreadsheetId as string
+/** 빈 '가계부' 탭에 헤더 두 줄을 쓴다 */
+async function initLedger(id: string): Promise<void> {
+  await gs.batchSetValues(
+    id,
+    [{ range: `${LEDGER}!A2`, values: [['', '', '지출', ''], ['월', '이월잔고', '지출합계', '잔고']] }],
+    'RAW',
+  )
 }
 
 /** 0 기반 열 인덱스 → A1 열 문자 */
@@ -86,11 +90,7 @@ export async function openSpreadsheet(id: string): Promise<{ title: string; cate
   const titles: string[] = meta.sheets.map((s: { properties: { title: string } }) => s.properties.title)
   if (!titles.includes(LEDGER)) {
     await gs.batchUpdate(id, [{ addSheet: { properties: { title: LEDGER } } }])
-    await gs.batchSetValues(
-      id,
-      [{ range: `${LEDGER}!A2`, values: [['', '', '지출', ''], ['월', '이월잔고', '지출합계', '잔고']] }],
-      'RAW',
-    )
+    await initLedger(id)
   }
   let data = await loadAll(id)
   if (titles.includes('가계부앱_항목')) {

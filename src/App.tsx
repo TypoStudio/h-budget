@@ -11,7 +11,6 @@ import {
   moveCategoryTo as sheetMoveCategoryTo,
   newId,
   openSpreadsheet,
-  parseSpreadsheetId,
   setAmounts,
   setMemo as sheetSetMemo,
   updateCategory as sheetUpdateCategory,
@@ -44,7 +43,6 @@ export default function App() {
   const [booting, setBooting] = useState(true)
   const [spreadsheetId, setSpreadsheetId] = useState<string | null>(null)
   const [sheetTitle, setSheetTitle] = useState('')
-  const [sheetInput, setSheetInput] = useState('')
   const [categories, setCategories] = useState<Category[]>([])
   const [entries, setEntries] = useState<Entry[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -99,7 +97,11 @@ export default function App() {
       setLoaded(true)
       localStorage.setItem(LS_SHEET, id)
     } catch (e) {
-      fail(e)
+      // 앱은 피커에서 고른 시트에만 접근할 수 있다 — 권한이 없으면 다시 고르게 한다
+      if (e instanceof Error && /40[34]/.test(e.message)) {
+        localStorage.removeItem(LS_SHEET)
+        setError('이 시트를 열 권한이 없습니다. 아래에서 시트를 다시 선택해주세요.')
+      } else fail(e)
     } finally {
       setBusy(false)
     }
@@ -290,12 +292,9 @@ export default function App() {
           <h3 className="intro-title">요청하는 구글 권한과 사용 목적</h3>
           <ul>
             <li>
-              <b>스프레드시트 보기 및 관리</b> — 연결한 가계부 시트의 항목·금액·메모를 읽고 저장하는 데만
-              사용합니다.
-            </li>
-            <li>
-              <b>내가 고른 드라이브 파일</b> — 시트 선택 창에서 직접 고른 스프레드시트에만 접근합니다.
-              고르지 않은 다른 파일은 앱이 보거나 열 수 없습니다.
+              <b>내가 고른 드라이브 파일</b> — 시트 선택 창에서 직접 고른 스프레드시트와 앱이 새로 만든
+              스프레드시트에만 접근합니다. 그 시트의 항목·금액·메모를 읽고 저장하는 데만 쓰며, 고르지 않은
+              다른 파일은 앱이 보거나 열 수 없습니다.
             </li>
           </ul>
           <p className="hint">
@@ -326,24 +325,6 @@ export default function App() {
           </button>
         )}
 
-        <div className="add-form">
-          <input
-            value={sheetInput}
-            placeholder="스프레드시트 URL 또는 ID 붙여넣기"
-            onChange={(e) => setSheetInput(e.target.value)}
-          />
-          <button
-            className="primary"
-            disabled={busy}
-            onClick={() => {
-              const id = parseSpreadsheetId(sheetInput)
-              if (!id) setError('스프레드시트 URL 또는 ID를 인식하지 못했습니다.')
-              else void connectTo(id)
-            }}
-          >
-            연결
-          </button>
-        </div>
         <div className="divider">또는</div>
         <button disabled={busy} onClick={() => void handleCreate()}>
           새 스프레드시트 만들기

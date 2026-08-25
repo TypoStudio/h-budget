@@ -1,7 +1,7 @@
 const SHEETS = 'https://sheets.googleapis.com/v4/spreadsheets'
-// drive.file은 비민감 범위 — 피커에서 사용자가 고른 파일에만 접근한다.
-// (예전의 drive.metadata.readonly는 '제한된 범위'라 구글 검증 부담이 크다)
-const SCOPE = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file'
+// drive.file 하나만 쓴다 — 피커에서 고른 파일과 앱이 만든 파일에만 접근하는 비민감 범위.
+// Sheets API도 이 범위로 읽고 쓸 수 있어, 민감 범위가 없으니 '확인되지 않은 앱' 경고가 뜨지 않는다
+const SCOPE = 'https://www.googleapis.com/auth/drive.file'
 const LS_TOKEN = 'hb.token'
 /** 이 브라우저에서 한 번이라도 권한에 동의했는지 — 조용한 재로그인 시도 여부를 판단한다 */
 const LS_CONSENT = 'hb.consent'
@@ -135,7 +135,9 @@ async function call(method: string, url: string, body?: unknown, retried = false
 }
 
 export const gs = {
-  create: (title: string) => call('POST', SHEETS, { properties: { title } }),
+  /** sheetTitle을 주면 기본 '시트1' 대신 그 이름의 탭 하나만 만든다 */
+  create: (title: string, sheetTitle: string) =>
+    call('POST', SHEETS, { properties: { title }, sheets: [{ properties: { title: sheetTitle } }] }),
   meta: (id: string) => call('GET', `${SHEETS}/${id}?fields=properties.title,sheets.properties`),
   getValues: (id: string, range: string, render?: 'raw' | 'formula') =>
     call(
