@@ -123,7 +123,7 @@ export default function App() {
   // 예전에 동의한 브라우저면 동의 창 없이 토큰만 다시 받아온다
   useEffect(() => {
     const boot = async () => {
-      let ok = restoreToken()
+      let ok = restoreToken(CLIENT_ID)
       if (!ok && hasConsented()) ok = await signIn(CLIENT_ID, true).then(() => true, () => false)
       if (ok) {
         setSignedIn(true)

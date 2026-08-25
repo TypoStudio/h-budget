@@ -19,8 +19,12 @@ export function hasConsented(): boolean {
   return localStorage.getItem(LS_CONSENT) === '1'
 }
 
-/** 새로고침 시 localStorage에 저장된 토큰이 유효하면 복원한다 */
-export function restoreToken(): boolean {
+/**
+ * 새로고침 시 localStorage에 저장된 토큰이 유효하면 복원한다.
+ * 복원 경로에서도 clientId를 기억해야 피커의 앱 ID와 토큰 자동 갱신이 동작한다.
+ */
+export function restoreToken(clientId: string): boolean {
+  clientIdInUse = clientId
   const raw = localStorage.getItem(LS_TOKEN)
   if (!raw) return false
   try {
@@ -168,6 +172,8 @@ export const gs = {
 /** 구글 피커로 스프레드시트를 고르게 한다. 고르지 않고 닫으면 null */
 export async function pickSpreadsheet(apiKey: string): Promise<{ id: string; name: string } | null> {
   if (!accessToken) throw new Error('로그인이 필요합니다.')
+  const appId = clientIdInUse.split('-')[0]
+  if (!appId) throw new Error('앱 정보를 알 수 없습니다. 다시 로그인해주세요.')
   const g = await pickerReady()
   return new Promise((resolve) => {
     const picker = new g.picker.PickerBuilder()
@@ -175,7 +181,7 @@ export async function pickSpreadsheet(apiKey: string): Promise<{ id: string; nam
       .setDeveloperKey(apiKey)
       // drive.file 범위에서는 앱 ID(클라이언트 ID 앞의 프로젝트 번호)를 알려줘야
       // 고른 파일에 대한 접근 권한이 앱에 부여된다
-      .setAppId(clientIdInUse.split('-')[0])
+      .setAppId(appId)
       .setTitle('가계부로 쓸 스프레드시트 선택')
       .addView(new g.picker.DocsView(g.picker.ViewId.SPREADSHEETS).setIncludeFolders(true))
       .setCallback((data: { action: string; docs?: { id: string; name: string }[] }) => {
