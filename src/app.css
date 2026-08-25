@@ -1237,8 +1237,31 @@ ol.hint {
   color: var(--accent-text);
   border-bottom-color: currentColor;
 }
-.site-footer .copyright {
+/* 오른쪽 끝 배지 — 깃허브 저장소 · 제작사 홈 */
+.footer-badges {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.site-footer .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border-bottom: 0;
+  border-radius: 4px;
+  background: #24292f;
+  color: #fff;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+.site-footer .badge.site {
+  background: #5b636b;
+}
+.site-footer .badge:hover {
+  color: #fff;
+  opacity: 0.85;
 }
 
 @media print {
