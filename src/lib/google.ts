@@ -173,6 +173,9 @@ export async function pickSpreadsheet(apiKey: string): Promise<{ id: string; nam
     const picker = new g.picker.PickerBuilder()
       .setOAuthToken(accessToken)
       .setDeveloperKey(apiKey)
+      // drive.file 범위에서는 앱 ID(클라이언트 ID 앞의 프로젝트 번호)를 알려줘야
+      // 고른 파일에 대한 접근 권한이 앱에 부여된다
+      .setAppId(clientIdInUse.split('-')[0])
       .setTitle('가계부로 쓸 스프레드시트 선택')
       .addView(new g.picker.DocsView(g.picker.ViewId.SPREADSHEETS).setIncludeFolders(true))
       .setCallback((data: { action: string; docs?: { id: string; name: string }[] }) => {
