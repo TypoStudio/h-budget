@@ -1,4 +1,4 @@
-# 가계부 (h-budget) — 구글시트 가계부
+# 월간 가계부 (h-budget) — 구글시트 가계부
 
 **https://house-budget.typostudio.dev/**
 

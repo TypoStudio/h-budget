@@ -148,7 +148,7 @@ export default function MonthReport({ categories, entries, month, stats, onClose
         {refRows.length > 0 && table('참고 (합산 제외)', refRows)}
 
         <p className="report-footer">
-          © {new Date().getFullYear()} 가계부 · {location.host}
+          © {new Date().getFullYear()} 월간 가계부 · {location.host}
         </p>
       </div>
 
