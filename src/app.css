@@ -229,7 +229,8 @@ input.amount {
 .center h1 + p {
   margin-top: 10px;
 }
-.center .primary {
+/* 시트 선택 화면의 버튼들 — 폭을 카드에 맞춰 나란히 보이게 */
+.center > button {
   width: 100%;
   padding: 10px;
   margin: 8px 0;
